@@ -1,0 +1,7 @@
+{
+  // Use the TypeScript version installed in this project instead of the one
+  // bundled with VS Code. The bundled TypeScript (6.x/7.x) reports the
+  // deprecated options inside node_modules/mongodb/tsconfig.json as errors.
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true
+}

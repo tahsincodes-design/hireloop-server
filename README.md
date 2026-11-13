@@ -19,31 +19,41 @@ MONGO_DB_URI=mongodb://...
 MONGO_DB_NAME=hireloopdb
 BETTER_AUTH_SECRET=same-secret-as-the-next-app
 CORS_ORIGINS=http://localhost:3000
-PUBLIC_BASE_URL=http://localhost:5000
 ```
 
-`BETTER_AUTH_SECRET` is used to verify the HMAC identity headers that the Next.js
-app sends. Every protected route re-checks the caller's role and status in
-MongoDB, and checks resource ownership.
+`BETTER_AUTH_SECRET` verifies the HMAC identity headers (`x-hireloop-user-id`,
+`x-hireloop-user-role`, `x-hireloop-timestamp`, `x-hireloop-signature`) sent by
+the Next.js app. Every protected route re-checks the caller's role and status in
+MongoDB.
 
 ## Endpoints
+
+Collections use one generic CRUD helper. `GET` list routes accept `?limit=`,
+`?skip=` and equality filters for that collection's fields.
 
 | Area          | Routes                                                                 |
 | ------------- | ---------------------------------------------------------------------- |
 | Health        | `GET /`, `GET /health`                                                 |
-| Users         | `GET /users`, `GET /users/:id` (admin)                                 |
-| Candidates    | `GET /candidates` (recruiter/admin)                                    |
-| Jobs          | `GET /jobs`, `GET /jobs/recommended`, `GET/PATCH/DELETE /jobs/:id`, `POST /jobs` |
-| Applications  | `GET/POST /applications`, `GET/PATCH/DELETE /applications/:id`          |
-| Saved jobs    | `GET/POST /saved-jobs`, `DELETE /saved-jobs/:jobId`                    |
-| Interviews    | `GET/POST /interviews`, `GET/PATCH/DELETE /interviews/:id`             |
-| Notifications | `GET /notifications`, `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`, `DELETE /notifications/:id` |
-| Profiles      | `GET/PUT /profiles/me`, `POST/DELETE /profiles/me/resume`, `GET /profiles/:id` |
-| Companies     | `GET /companies`, `GET/PUT/DELETE /companies/me`                       |
-| Admin         | `GET /admin/stats`, `GET /admin/analytics`, `GET /admin/users/:id`, `GET/POST /admin/reports`, `GET/PATCH/DELETE /admin/reports/:id` |
+| Users         | `GET /users`, `GET /users/:id` (admin; Better Auth owns writes)        |
+| Jobs          | `GET/POST /jobs`, `GET/PATCH/PUT/DELETE /jobs/:id`                     |
+| Applications  | `GET/POST /applications`, `GET/PATCH/PUT/DELETE /applications/:id`      |
+| Saved jobs    | `GET/POST /saved-jobs`, `GET/DELETE /saved-jobs/:id`                   |
+| Interviews    | `GET/POST /interviews`, `GET/PATCH/PUT/DELETE /interviews/:id`         |
+| Notifications | `GET/POST /notifications`, `PATCH/PUT/DELETE /notifications/:id`, `PATCH /notifications/read-all` |
+| Profiles      | `GET/PUT/PATCH /profiles/me` (one profile per user)                    |
+| Companies     | `GET /companies` (admin), `GET/PUT/PATCH/DELETE /companies/me`         |
+| Reports       | `GET/POST /reports`, `GET/PATCH/PUT/DELETE /reports/:id`               |
 
-Resumes are stored in `uploads/` and served from `/uploads/<file>`. Uploads are
-limited to PDF/DOC/DOCX files up to 5 MB.
+Write permissions and ownership scoping:
 
-Account creation, role changes, suspension, and account deletion stay in the
-Next.js app because Better Auth owns those records.
+- Jobs: recruiters/admins write; recruiters only their own jobs; seekers see active jobs only.
+- Applications: seekers apply; seekers see their own, recruiters see applications for their jobs.
+- Interviews: recruiters/admins write; seekers see their own interviews.
+- Notifications and saved jobs: scoped to the calling user.
+- Reports: anyone can report; only admins update/delete.
+- Profiles and companies are upserted through `/me`.
+
+`DELETE /saved-jobs/:id` takes the saved-job document id (not the job id).
+There is no resume upload endpoint; store `resumeUrl` through `PATCH /profiles/me`.
+Account creation, role changes, suspension and deletion stay in the Next.js app
+because Better Auth owns those records.
